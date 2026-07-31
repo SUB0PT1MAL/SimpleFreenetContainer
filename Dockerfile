@@ -29,14 +29,19 @@ RUN git clone --depth 1 https://github.com/freenet/freenet-core.git .
 # Installs the `freenet` node binary to $CARGO_HOME/bin/freenet
 RUN cargo install --path crates/core --locked
 
-# Runtime
+# Runtime stage
 FROM alpine:latest
 
-RUN apk add --no-cache ca-certificates libgcc
+# ca-certificates/libgcc: runtime deps for the freenet binary
+# bash: interactive shell for `docker exec` / the shell escape hatch below
+# curl, procps, iproute2, less: basic tools for poking at the running node
+RUN apk add --no-cache ca-certificates bash
 
-RUN addgroup -S freenet && adduser -S -G freenet freenet
+RUN addgroup -S freenet && adduser -S -G freenet -s /bin/bash freenet
 
 COPY --from=builder /usr/local/cargo/bin/freenet /usr/local/bin/freenet
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # TODO: confirm default data/config paths once the node runs once
 # adjust this volume target to match so the datastore survives container recreation.
@@ -49,5 +54,5 @@ VOLUME ["/home/freenet/.local/share/freenet"]
 
 EXPOSE 7509
 
-ENTRYPOINT ["freenet"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["--ws-api-address", "0.0.0.0", "--ws-api-port", "7509"]
