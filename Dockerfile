@@ -50,4 +50,3 @@ VOLUME ["/home/freenet/.local/share/freenet"]
 EXPOSE 7509
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["--ws-api-address", "0.0.0.0", "--ws-api-port", "7509"]
