@@ -26,15 +26,11 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
 WORKDIR /build
 RUN git clone --depth 1 https://github.com/freenet/freenet-core.git .
 
-# Installs the `freenet` node binary to $CARGO_HOME/bin/freenet
 RUN cargo install --path crates/core --locked
 
 # Runtime stage
 FROM alpine:latest
 
-# ca-certificates/libgcc: runtime deps for the freenet binary
-# bash: interactive shell for `docker exec` / the shell escape hatch below
-# curl, procps, iproute2, less: basic tools for poking at the running node
 RUN apk add --no-cache ca-certificates bash
 
 RUN addgroup -S freenet && adduser -S -G freenet -s /bin/bash freenet
@@ -43,8 +39,7 @@ COPY --from=builder /usr/local/cargo/bin/freenet /usr/local/bin/freenet
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# TODO: confirm default data/config paths once the node runs once
-# adjust this volume target to match so the datastore survives container recreation.
+# volume targets the datastore so survives container recreation
 RUN mkdir -p /home/freenet/.config/freenet /home/freenet/.local/share/freenet \
     && chown -R freenet:freenet /home/freenet
 
