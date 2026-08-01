@@ -14,6 +14,7 @@ RUN apk add --no-cache \
     openssl-dev \
     git \
     curl
+
 # Install Rust via rustup
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
@@ -26,7 +27,7 @@ RUN cargo install --path crates/core --locked
 
 # Runtime stage
 FROM alpine:latest
-RUN apk add --no-cache ca-certificates bash tini
+RUN apk add --no-cache ca-certificates bash tini su-exec
 RUN addgroup -S freenet && adduser -S -G freenet -s /bin/bash freenet
 
 COPY --from=builder /usr/local/cargo/bin/freenet /home/freenet/bin/freenet
@@ -35,11 +36,13 @@ RUN chmod +x /usr/local/bin/entrypoint.sh /home/freenet/bin/freenet
 
 ENV PATH="/home/freenet/bin:${PATH}"
 
-# volume targets the datastore so survives container recreation
-RUN mkdir -p /home/freenet/.config/freenet /home/freenet/.local/share/freenet \
+ENV DATA_DIR=/home/freenet/.local/share/freenet \
+    CONFIG_DIR=/home/freenet/.config/freenet \
+    LOG_DIR=/home/freenet/.local/state/freenet
+
+RUN mkdir -p "$DATA_DIR" "$CONFIG_DIR" "$LOG_DIR" \
     && chown -R freenet:freenet /home/freenet
-USER freenet
+
 WORKDIR /home/freenet
-VOLUME ["/home/freenet/.local/share/freenet"]
 EXPOSE 7509
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint.sh"]
