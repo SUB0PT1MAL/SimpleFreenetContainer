@@ -1,6 +1,25 @@
 #!/bin/bash
 set -e
 
+if [ "$(id -u)" -eq 0 ]; then
+    DATA_DIR="${DATA_DIR:-/home/freenet/.local/share/freenet}"
+    CONFIG_DIR="${CONFIG_DIR:-/home/freenet/.config/freenet}"
+    LOG_DIR="${LOG_DIR:-/home/freenet/.local/state/freenet}"
+
+    for d in "$DATA_DIR" "$CONFIG_DIR" "$LOG_DIR"; do
+        mkdir -p "$d"
+        # Skip the recursive chown if ownership is already correct --
+        # matters once the datastore under DATA_DIR has real size to it,
+        # so a plain restart doesn't walk the whole tree every time.
+        owner_uid="$(stat -c '%u' "$d")"
+        if [ "$owner_uid" != "$(id -u freenet)" ]; then
+            chown -R freenet:freenet "$d"
+        fi
+    done
+
+    exec su-exec freenet "$0" "$@"
+fi
+
 case "$1" in
   shell|bash|sh)
     shift
@@ -10,6 +29,7 @@ esac
 
 WS_API_ADDRESS="${WS_API_ADDRESS:-0.0.0.0}"
 WS_API_PORT="${WS_API_PORT:-7509}"
+
 # FREENET_EXTRA_ARGS
 read -r -a EXTRA_ARGS <<< "${FREENET_EXTRA_ARGS:-}"
 
@@ -52,6 +72,7 @@ while :; do
     fi
 
     if [ "$exit_code" -eq "$EXIT_ALREADY_RUNNING" ]; then
+        # Restarting would just fight the same instance/port again.
         echo "[supervisor] freenet exited $EXIT_ALREADY_RUNNING (already running) -- not restarting." >&2
         exit "$exit_code"
     fi
